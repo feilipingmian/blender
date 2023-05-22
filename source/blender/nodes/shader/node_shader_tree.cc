@@ -23,8 +23,6 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
-#include "BLT_translation.h"
-
 #include "BKE_context.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
@@ -884,7 +882,6 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
               break;
             }
             case SH_NODE_BACKGROUND:
-            case SH_NODE_BSDF_ANISOTROPIC:
             case SH_NODE_BSDF_DIFFUSE:
             case SH_NODE_BSDF_GLASS:
             case SH_NODE_BSDF_GLOSSY:
@@ -942,7 +939,6 @@ static bool closure_node_filter(const bNode *node)
     case SH_NODE_ADD_SHADER:
     case SH_NODE_MIX_SHADER:
     case SH_NODE_BACKGROUND:
-    case SH_NODE_BSDF_ANISOTROPIC:
     case SH_NODE_BSDF_DIFFUSE:
     case SH_NODE_BSDF_GLASS:
     case SH_NODE_BSDF_GLOSSY:
