@@ -28,10 +28,8 @@ typedef enum LightLinkingType {
   LIGHT_LINKING_BLOCKER,
 } LightLinkingType;
 
-/* Get pointer or a collection of the given light linking type i=if the given object. */
-struct Collection **BKE_light_linking_collection_ptr_get(struct Object *object,
-                                                         LightLinkingType link_type);
-struct Collection *BKE_light_linking_collection_get(struct Object *object,
+/* Get a collection of the given light linking type of the given object. */
+struct Collection *BKE_light_linking_collection_get(const struct Object *object,
                                                     LightLinkingType link_type);
 
 /* Create new collection and assign it as a light or shadow linking collection (denoted by the

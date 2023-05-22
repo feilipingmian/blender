@@ -506,12 +506,11 @@ typedef struct Object {
   /** Lightgroup membership information. */
   struct LightgroupMembership *lightgroup;
 
-  LightLinking light_linking;
+  /** Light linking information. */
+  LightLinking *light_linking;
 
   /** Irradiance caches baked for this object (light-probes only). */
   struct LightProbeObjectCache *lightprobe_cache;
-
-  void *_pad9;
 
   /** Runtime evaluation data (keep last). */
   Object_Runtime runtime;

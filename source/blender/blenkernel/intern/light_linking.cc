@@ -5,6 +5,8 @@
 
 #include <string>
 
+#include "MEM_guardedalloc.h"
+
 #include "DNA_ID.h"
 #include "DNA_collection_types.h"
 #include "DNA_object_types.h"
@@ -23,30 +25,21 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 
-Collection **BKE_light_linking_collection_ptr_get(Object *object, const LightLinkingType link_type)
+Collection *BKE_light_linking_collection_get(const Object *object,
+                                             const LightLinkingType link_type)
 {
-  LightLinking &light_linking = object->light_linking;
-
-  switch (link_type) {
-    case LIGHT_LINKING_RECEIVER:
-      return &light_linking.receiver_collection;
-    case LIGHT_LINKING_BLOCKER:
-      return &light_linking.blocker_collection;
-  }
-
-  BLI_assert_unreachable();
-  return nullptr;
-}
-
-Collection *BKE_light_linking_collection_get(Object *object, const LightLinkingType link_type)
-{
-  Collection **collection_ptr = BKE_light_linking_collection_ptr_get(object, link_type);
-  if (!collection_ptr) {
-    BLI_assert_unreachable();
+  if (!object->light_linking) {
     return nullptr;
   }
 
-  return *collection_ptr;
+  switch (link_type) {
+    case LIGHT_LINKING_RECEIVER:
+      return object->light_linking->receiver_collection;
+    case LIGHT_LINKING_BLOCKER:
+      return object->light_linking->blocker_collection;
+  }
+
+  return nullptr;
 }
 
 static std::string get_default_collection_name(const Object *object,
@@ -86,17 +79,41 @@ void BKE_light_linking_collection_assign_only(struct Object *object,
                                               struct Collection *new_collection,
                                               const LightLinkingType link_type)
 {
-  Collection **collection_ptr = BKE_light_linking_collection_ptr_get(object, link_type);
-
-  /* Unassign old collection if any, */
-  if (*collection_ptr) {
-    id_us_min(&(*collection_ptr)->id);
+  /* Remove user from old collection. */
+  Collection *old_collection = BKE_light_linking_collection_get(object, link_type);
+  if (old_collection) {
+    id_us_min(&old_collection->id);
   }
 
-  *collection_ptr = new_collection;
+  /* Allocate light linking on demand. */
+  if (new_collection && !object->light_linking) {
+    object->light_linking = MEM_cnew<LightLinking>(__func__);
+  }
 
-  if (new_collection) {
-    id_us_plus(&new_collection->id);
+  if (object->light_linking) {
+    /* Assign and increment user of new collection. */
+    switch (link_type) {
+      case LIGHT_LINKING_RECEIVER:
+        object->light_linking->receiver_collection = new_collection;
+        break;
+      case LIGHT_LINKING_BLOCKER:
+        object->light_linking->blocker_collection = new_collection;
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+
+    if (new_collection) {
+      id_us_plus(&new_collection->id);
+    }
+
+    /* Free if empty. */
+    if (object->light_linking->receiver_collection == nullptr &&
+        object->light_linking->blocker_collection == nullptr)
+    {
+      MEM_SAFE_FREE(object->light_linking);
+    }
   }
 }
 
@@ -136,8 +153,8 @@ static CollectionLightLinking *light_linking_collection_add_object(Main *bmain,
 /* Add child collection to the light linking collection and return corresponding
  * CollectionLightLinking settings.
  *
- * If the child collection is already in the collection then the content of the collection is not
- * modified, and the existing light linking settings are returned. */
+ * If the child collection is already in the collection then the content of the collection is
+ * not modified, and the existing light linking settings are returned. */
 static CollectionLightLinking *light_linking_collection_add_collection(Main *bmain,
                                                                        Collection *collection,
                                                                        Collection *child)

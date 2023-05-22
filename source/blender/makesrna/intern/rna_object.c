@@ -2357,6 +2357,25 @@ void rna_Object_lightgroup_set(PointerRNA *ptr, const char *value)
   BKE_lightgroup_membership_set(&((Object *)ptr->owner_id)->lightgroup, value);
 }
 
+static PointerRNA rna_Object_light_linking_get(PointerRNA *ptr)
+{
+  return rna_pointer_inherit_refine(ptr, &RNA_ObjectLightLinking, ptr->data);
+}
+
+static char *rna_ObjectLightLinking_path(const PointerRNA *UNUSED(ptr))
+{
+  return BLI_strdup("light_linking");
+}
+
+static PointerRNA rna_LightLinking_receiver_collection_get(PointerRNA *ptr)
+{
+  Object *object = (Object *)ptr->owner_id;
+  PointerRNA collection_ptr;
+  RNA_id_pointer_create((ID *)BKE_light_linking_collection_get(object, LIGHT_LINKING_RECEIVER),
+                        &collection_ptr);
+  return collection_ptr;
+}
+
 static void rna_LightLinking_receiver_collection_set(PointerRNA *ptr,
                                                      PointerRNA value,
                                                      struct ReportList *UNUSED(reports))
@@ -2365,6 +2384,15 @@ static void rna_LightLinking_receiver_collection_set(PointerRNA *ptr,
   Collection *new_collection = (Collection *)value.data;
 
   BKE_light_linking_collection_assign_only(object, new_collection, LIGHT_LINKING_RECEIVER);
+}
+
+static PointerRNA rna_LightLinking_blocker_collection_get(PointerRNA *ptr)
+{
+  Object *object = (Object *)ptr->owner_id;
+  PointerRNA collection_ptr;
+  RNA_id_pointer_create((ID *)BKE_light_linking_collection_get(object, LIGHT_LINKING_BLOCKER),
+                        &collection_ptr);
+  return collection_ptr;
 }
 
 static void rna_LightLinking_blocker_collection_set(PointerRNA *ptr,
@@ -3925,7 +3953,8 @@ static void rna_def_object(BlenderRNA *brna)
   /* Light Linking. */
   prop = RNA_def_property(srna, "light_linking", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
-  RNA_def_property_struct_type(prop, "LightLinking");
+  RNA_def_property_struct_type(prop, "ObjectLightLinking");
+  RNA_def_property_pointer_funcs(prop, "rna_Object_light_linking_get", NULL, NULL, NULL);
   RNA_def_property_ui_text(prop, "Light Linking", "Light linking settings");
 
   RNA_define_lib_overridable(false);
@@ -3944,15 +3973,20 @@ static void rna_def_object_light_linking(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  srna = RNA_def_struct(brna, "LightLinking", NULL);
-  RNA_def_struct_sdna(srna, "LightLinking");
-  RNA_def_struct_ui_text(srna, "Light Linking", "");
+  srna = RNA_def_struct(brna, "ObjectLightLinking", NULL);
+  RNA_def_struct_ui_text(srna, "Object Light Linking", "");
+  RNA_def_struct_sdna(srna, "Object");
+  RNA_def_struct_nested(brna, srna, "Object");
+  RNA_def_struct_path_func(srna, "rna_ObjectLightLinking_path");
 
   prop = RNA_def_property(srna, "receiver_collection", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Collection");
   RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_pointer_funcs(
-      prop, NULL, "rna_LightLinking_receiver_collection_set", NULL, NULL);
+  RNA_def_property_pointer_funcs(prop,
+                                 "rna_LightLinking_receiver_collection_get",
+                                 "rna_LightLinking_receiver_collection_set",
+                                 NULL,
+                                 NULL);
   RNA_def_property_ui_text(prop,
                            "Receiver Collection",
                            "Collection which defines light linking relation of this emitter");
@@ -3961,8 +3995,11 @@ static void rna_def_object_light_linking(BlenderRNA *brna)
   prop = RNA_def_property(srna, "blocker_collection", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Collection");
   RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_pointer_funcs(
-      prop, NULL, "rna_LightLinking_blocker_collection_set", NULL, NULL);
+  RNA_def_property_pointer_funcs(prop,
+                                 "rna_LightLinking_blocker_collection_get",
+                                 "rna_LightLinking_blocker_collection_set",
+                                 NULL,
+                                 NULL);
   RNA_def_property_ui_text(prop,
                            "Blocker Collection",
                            "Collection which defines objects which block light from this emitter");

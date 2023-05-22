@@ -1255,12 +1255,14 @@ void DepsgraphRelationBuilder::build_object_light_linking(Object *emitter)
   const OperationKey light_linking_key(
       &emitter->id, NodeType::SHADING, OperationCode::LIGHT_LINKING_UPDATE);
 
-  LightLinking &light_linking = emitter->light_linking;
-
   add_relation(hierarchy_key, light_linking_key, "Light Linking From Layer");
 
-  build_light_linking_collection(emitter, light_linking.receiver_collection);
-  build_light_linking_collection(emitter, light_linking.blocker_collection);
+  if (emitter->light_linking) {
+    LightLinking &light_linking = *emitter->light_linking;
+
+    build_light_linking_collection(emitter, light_linking.receiver_collection);
+    build_light_linking_collection(emitter, light_linking.blocker_collection);
+  }
 }
 
 void DepsgraphRelationBuilder::build_light_linking_collection(Object *emitter,

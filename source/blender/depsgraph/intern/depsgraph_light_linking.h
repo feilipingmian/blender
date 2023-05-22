@@ -126,11 +126,7 @@ class EmitterDataMap {
   /* TODO(sergey): Check whether template specialization is preferred here. */
   inline const Collection *get_collection(const Object &emitter) const
   {
-    if (link_type_ == LIGHT_LINKING_BLOCKER) {
-      return emitter.light_linking.blocker_collection;
-    }
-
-    return emitter.light_linking.receiver_collection;
+    return BKE_light_linking_collection_get(&emitter, link_type_);
   }
 
   LightLinkingType link_type_ = LIGHT_LINKING_RECEIVER;
@@ -283,8 +279,9 @@ class Cache {
 /* Check whether object can be linked to an emitter without causing feedback loop. */
 inline bool can_link_to_emitter(const Object &object)
 {
-  return object.light_linking.receiver_collection == nullptr &&
-         object.light_linking.blocker_collection == nullptr;
+  return object.light_linking == nullptr ||
+         (object.light_linking->receiver_collection == nullptr &&
+          object.light_linking->blocker_collection == nullptr);
 }
 
 }  // namespace blender::deg::light_linking

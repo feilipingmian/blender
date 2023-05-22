@@ -101,9 +101,9 @@ NODE_DEFINE(Object)
 
   SOCKET_STRING(lightgroup, "Light Group", ustring());
   SOCKET_UINT(receiver_light_set, "Light Set Index", 0);
-  SOCKET_UINT64(light_set_membership, "Light Set Membership", 0);
+  SOCKET_UINT64(light_set_membership, "Light Set Membership", LIGHT_LINK_MASK_ALL);
   SOCKET_UINT(blocker_shadow_set, "Shadow Set Index", 0);
-  SOCKET_UINT64(shadow_set_membership, "Shadow Set Membership", 0);
+  SOCKET_UINT64(shadow_set_membership, "Shadow Set Membership", LIGHT_LINK_MASK_ALL);
 
   return type;
 }

@@ -267,6 +267,9 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
   if (ob_src->lightgroup) {
     ob_dst->lightgroup = (LightgroupMembership *)MEM_dupallocN(ob_src->lightgroup);
   }
+  if (ob_src->light_linking) {
+    ob_dst->light_linking = (LightLinking *)MEM_dupallocN(ob_src->light_linking);
+  }
 
   if ((flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) != 0) {
     if (ob_src->lightprobe_cache) {
@@ -331,6 +334,7 @@ static void object_free_data(ID *id)
   BKE_previewimg_free(&ob->preview);
 
   MEM_SAFE_FREE(ob->lightgroup);
+  MEM_SAFE_FREE(ob->light_linking);
 
   BKE_lightprobe_cache_free(ob);
 }
@@ -470,10 +474,12 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
     }
   }
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(
-      data, object->light_linking.receiver_collection, IDWALK_CB_USER);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(
-      data, object->light_linking.blocker_collection, IDWALK_CB_USER);
+  if (object->light_linking) {
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(
+        data, object->light_linking->receiver_collection, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(
+        data, object->light_linking->blocker_collection, IDWALK_CB_USER);
+  }
 }
 
 static void object_foreach_path_pointcache(ListBase *ptcache_list,
@@ -615,6 +621,9 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   if (ob->lightgroup) {
     BLO_write_struct(writer, LightgroupMembership, ob->lightgroup);
+  }
+  if (ob->light_linking) {
+    BLO_write_struct(writer, LightgroupMembership, ob->light_linking);
   }
 
   if (ob->lightprobe_cache) {
@@ -839,6 +848,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   BKE_previewimg_blend_read(reader, ob->preview);
 
   BLO_read_data_address(reader, &ob->lightgroup);
+  BLO_read_data_address(reader, &ob->light_linking);
 
   BLO_read_data_address(reader, &ob->lightprobe_cache);
   if (ob->lightprobe_cache) {
@@ -1040,8 +1050,10 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
     BLO_read_id_address(reader, id, &ob->rigidbody_constraint->ob2);
   }
 
-  BLO_read_id_address(reader, id, &ob->light_linking.receiver_collection);
-  BLO_read_id_address(reader, id, &ob->light_linking.blocker_collection);
+  if (ob->light_linking) {
+    BLO_read_id_address(reader, id, &ob->light_linking->receiver_collection);
+    BLO_read_id_address(reader, id, &ob->light_linking->blocker_collection);
+  }
 }
 
 /* XXX deprecated - old animation system */
@@ -1160,8 +1172,10 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
   }
 
   /* Light and shadow linking. */
-  BLO_expand(expander, ob->light_linking.receiver_collection);
-  BLO_expand(expander, ob->light_linking.blocker_collection);
+  if (ob->light_linking) {
+    BLO_expand(expander, ob->light_linking->receiver_collection);
+    BLO_expand(expander, ob->light_linking->blocker_collection);
+  }
 }
 
 static void object_lib_override_apply_post(ID *id_dst, ID *id_src)
