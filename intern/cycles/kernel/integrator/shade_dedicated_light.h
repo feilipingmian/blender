@@ -136,7 +136,7 @@ ccl_device bool shadow_linking_shade_surface_emission(KernelGlobals kg,
   }
 #  endif
 
-  surface_shader_eval<KERNEL_FEATURE_NODE_MASK_SURFACE>(
+  surface_shader_eval<KERNEL_FEATURE_NODE_MASK_SURFACE_LIGHT>(
       kg, state, emission_sd, render_buffer, path_flag);
   surface_shader_prepare_closures(kg, state, emission_sd, path_flag);
 
