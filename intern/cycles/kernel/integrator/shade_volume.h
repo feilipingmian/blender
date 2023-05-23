@@ -893,6 +893,7 @@ ccl_device_forceinline void integrate_volume_direct_light(
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, unlit_throughput) = unlit_throughput;
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, path_segment) = INTEGRATOR_STATE(
       state, guiding, path_segment);
+  INTEGRATOR_STATE(shadow_state, shadow_path, guiding_mis_weight) = 0.0f;
 #  endif
 
   integrator_state_copy_volume_stack_to_shadow(kg, shadow_state, state);

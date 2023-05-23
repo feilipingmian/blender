@@ -81,6 +81,7 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
                                            ccl_private Intersection &ccl_restrict isect,
                                            ccl_private ShaderData *emission_sd,
                                            ccl_private Spectrum &ccl_restrict bsdf_spectrum,
+                                           ccl_private float &mis_weight,
                                            ccl_private int &ccl_restrict light_group)
 {
   LightSample ls ccl_optional_struct_init;
@@ -101,7 +102,6 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
   }
 
   /* MIS weighting. */
-  float mis_weight = 1.0f;
   if (!(path_flag & PATH_RAY_MIS_SKIP)) {
     mis_weight = shadow_linking_light_sample_mis_weight(kg, state, path_flag, &ls, ray.P);
   }
@@ -124,6 +124,7 @@ ccl_device bool shadow_linking_shade_surface_emission(KernelGlobals kg,
                                                       ccl_global float *ccl_restrict render_buffer,
                                                       ccl_private Spectrum &ccl_restrict
                                                           bsdf_spectrum,
+                                                      ccl_private float &mis_weight,
                                                       ccl_private int &ccl_restrict light_group)
 {
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
@@ -145,7 +146,6 @@ ccl_device bool shadow_linking_shade_surface_emission(KernelGlobals kg,
   }
 
   const Spectrum L = surface_shader_emission(emission_sd);
-  float mis_weight = 1.0f;
 
   const bool has_mis = !(path_flag & PATH_RAY_MIS_SKIP) &&
                        (emission_sd->flag &
@@ -182,20 +182,33 @@ ccl_device void shadow_linking_shade(KernelGlobals kg,
   ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
 
   Spectrum bsdf_spectrum;
+  float mis_weight = 1.0f;
   int light_group = LIGHTGROUP_NONE;
 
   if (isect.type == PRIMITIVE_LAMP) {
     if (!shadow_linking_shade_light(
-            kg, state, ray, isect, emission_sd, bsdf_spectrum, light_group)) {
+            kg, state, ray, isect, emission_sd, bsdf_spectrum, mis_weight, light_group))
+    {
       return;
     }
   }
   else {
-    if (!shadow_linking_shade_surface_emission(
-            kg, state, ray, isect, emission_sd, render_buffer, bsdf_spectrum, light_group))
+    if (!shadow_linking_shade_surface_emission(kg,
+                                               state,
+                                               ray,
+                                               isect,
+                                               emission_sd,
+                                               render_buffer,
+                                               bsdf_spectrum,
+                                               mis_weight,
+                                               light_group))
     {
       return;
     }
+  }
+
+  if (is_zero(bsdf_spectrum)) {
+    return;
   }
 
   shadow_linking_setup_ray_from_intersection(state, &ray, &isect);
@@ -226,7 +239,12 @@ ccl_device void shadow_linking_shade(KernelGlobals kg,
 
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, flag) = shadow_flag;
 
-  // TODO: Disable path guiding for this shadow ray?
+#  ifdef __PATH_GUIDING__
+  if (kernel_data.integrator.train_guiding) {
+    guiding_record_light_surface_segment(kg, state, &isect);
+    INTEGRATOR_STATE(shadow_state, shadow_path, guiding_mis_weight) = mis_weight;
+  }
+#  endif
 }
 
 #endif /* __SHADOW_LINKING__ */
