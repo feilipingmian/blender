@@ -634,11 +634,21 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
   const ComponentKey collection_hierarchy_key{&collection->id, NodeType::HIERARCHY};
 
   if (from_layer_collection != nullptr) {
-    // XXX: Documentation.
+    /* If we came from layer collection we don't go deeper, view layer builder takes care of going
+     * deeper.
+     *
+     * NOTE: Do early output before tagging build as done, so possible subsequent builds from
+     * outside of the layer collection properly recurses into all the nested objects and
+     * collections. */
 
     LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
       Object *object = cob->ob;
 
+      /* Ensure that the hierarchy relations always exists, even for the layer collection.
+       *
+       * Note that the view layer builder can skip bases if they are constantly excluded from the
+       * collections. In order to avoid noisy output check that the target node exists before
+       * adding the relation. */
       const ComponentKey object_hierarchy_key{&object->id, NodeType::HIERARCHY};
       if (has_node(object_hierarchy_key)) {
         add_relation(collection_hierarchy_key,
